@@ -1,0 +1,449 @@
+<div id="container">
+    <canvas id="canvas" width="400" height="800"></canvas>
+    <span id="full-score">
+        Score:
+        <span id="score">0</span>
+    </span>
+    <ul>
+        <li><a id="selected">Tetris</a></li>
+        <li><a href="conway.html">Conway's Game of Life</a></li>
+        <li><a>Drum Machine</a></li>
+        <li><a>Pong</a></li>
+        
+    </ul>
+
+    
+    <div><input type="checkbox" id="gridlines">Use gridlines<br></div>
+</div>
+
+
+<style>
+    #container{
+        max-width: 700px;
+        margin: auto;
+    }
+    #full-score{
+        font-family: Arial, Helvetica, sans-serif;
+        position: fixed;
+        top: 40px;
+        right: 650px;
+        font-size:22pt
+    }
+    canvas{
+        
+        margin: 0 auto;
+        vertical-align: middle;
+    }
+    input{
+        margin-top: 20px;
+        font-size: 40px;
+    }
+
+    ul {
+        position: fixed;
+        top: 50;
+        left: 50;
+        list-style-type: none;
+        margin: 0;
+        padding: 0;
+        width: 200px;
+        background-color: #f1f1f1;
+        }
+
+    li a {
+        display: block;
+        color: #000;
+        padding: 8px 16px;
+        text-decoration: none;
+    }
+
+        /* Change the link color on hover */
+    li a:hover {
+        background-color: #555;
+        color: white;
+    }
+
+    
+</style>
+<script>
+
+var element = document.getElementById("selected")
+element.style.background = 'darkseagreen';
+element.style.color = 'white';
+var can = document.getElementById("canvas");
+var c = can.getContext("2d");
+var CUBEW = 400/10 - 1;
+var CUBEH = 800/20 - 1;
+var gravity = 10;
+var colors = ['dodgerblue', 'orange', 'tomato', 'MediumSeaGreen', 'skyblue', 'MediumSlateBlue', 'yellow'];
+var lockedInColors = ['blue', 'darkorange', 'red', 'green', 'MediumTurquoise ', 'RebeccaPurple', 'gold'];
+var backgroundColor = 'lightgray';
+var lineColor = 'gray';
+var board = new Array(20);
+var boardColors = new Array(20);
+initializeBoard();
+var p = new peice();
+var d = new Date();
+var oldSec = d.getMilliseconds();
+var fallSpeed = 900;
+var setSpeed = 1;
+var updateCounter = 1;
+var totalScore = 0;
+var sitAmount = [];
+var lostGame = false;
+
+
+var transforms ={
+    //lists represent cubes' positions  counter clockwise
+    "dodgerblue" : {
+        "0" : [ 3, 0, 5, 0, 5, 2, 3, 2],
+        "1" : [ 3, 1, 4, 0, 5, 1, 4, 2],
+        "2" : [ 4, 1, 4, 1, 4, 1, 4, 1],
+        "3" : [ 5, 1, 4, 2, 3, 1, 4, 0],
+    },
+    "orange" : {
+        "0" : [5, 0, 5, 2, 3, 2, 3, 0],
+        "1" : [3, 1, 4, 0, 5, 1, 4, 2],
+        "2" : [4, 1, 4, 1, 4, 1, 4, 1],
+        "3" : [5, 1, 4, 2, 3, 1, 4, 0],
+    },
+    "tomato" : {
+        "0" : [4, 0, 5, 1, 4, 2, 3, 1],
+        "1" : [3, 0, 5, 0, 5, 2, 3, 2],
+        "2" : [4, 1, 4, 1, 4, 1, 4, 1],
+        "3" : [5, 1, 4, 2, 3, 1, 4, 0],
+    },
+    "MediumSeaGreen" : {
+        "0" : [5, 0, 5, 2, 3, 2, 3, 0],
+        "1" : [4, 0, 5, 1, 4, 2, 3, 1],
+        "2" : [3, 1, 4, 0, 5, 1, 4, 2],
+        "3" : [4, 1, 4, 1, 4, 1, 4, 1],
+    },
+    "skyblue" : {
+        "0" : [3, 1, 5, 0, 3, 1, 4, 0],
+        "1" : [4, 1, 5, 1, 4, 1, 4, 1],
+        "2" : [5, 1, 5, 2, 5, 1, 4, 2],
+        "3" : [6, 1, 5, 3, 6, 1, 4, 3],
+    },
+    "MediumSlateBlue" : {
+        "0" : [4, 0, 5, 1, 4, 2, 3, 1],
+        "1" : [3, 1, 4, 0, 3, 1, 4, 2],
+        "2" : [4, 1, 4, 1, 4, 1, 4, 1],
+        "3" : [5, 1, 4, 2, 5, 1, 4, 0],
+    },
+    "yellow" :{
+        "0" : [4, 0, 4, 0, 4, 0, 4, 0],
+        "1" : [4, 1, 4, 1, 4, 1, 4, 1],
+        "2" : [5, 1, 5, 1, 5, 1, 5, 1],
+        "3" : [5, 0, 5, 0, 5, 0, 5, 0],
+    }
+}
+
+document.addEventListener('keydown', function(event) {
+        switch (event.key) {
+            case "ArrowDown":
+                p.yMove(1); 
+                break;
+            case "ArrowUp":
+                p.spin()
+                break;
+            case "ArrowLeft":
+                p.xMove(-1);
+                break;
+            case "ArrowRight":
+                p.xMove(1);
+                break;
+            case "Enter":
+                lostGame = false;
+                break;
+            default:
+                return; // Quit when this doesn't handle the key event.
+        }
+});
+
+
+setInterval(update, 50);
+
+function update(){
+    checkLoss();
+    drawgrid();
+    if(lostGame){
+        initializeBoard();
+        c.fillStyle = "black";
+        c.font = "40px Ariel"
+        c.fillText("Game Over!", 101, 312)
+        c.font = "30px Ariel"
+        c.fillText("Press enter to play again.", 56, 390)
+        totalScore = 0;
+        return;
+    }
+    p.render();
+
+    d = new Date()
+    var newSec = d.getMilliseconds();
+    var holder = true;
+    
+    if (oldSec < newSec){
+        var diff = newSec - oldSec
+    } else{
+        var diff = 1000-oldSec+newSec
+    }
+
+    if(updateCounter % 1000 == 0 ){
+        if(fallSpeed > 100)
+            fallSpeed -= 100;
+        else
+            fallSpeed -= 10;
+    }
+
+    if(updateCounter % 3000 == 0){
+        setSpeed++;
+    }
+  
+    if (diff >= fallSpeed){
+        holder = p.yMove(1);
+        oldSec = newSec;
+        if (!holder){
+            sitAmount.push(false);
+        }
+        
+        if (sitAmount.length > setSpeed){
+            sitAmount = [];
+            placePeiceInBoard(p);
+            removeRows();
+            p = new peice();
+            //printArrays();
+        }
+
+    }
+    updateCounter++;
+    document.getElementById("score").innerHTML = totalScore;
+    
+}
+
+function placePeiceInBoard(peice){
+    for (let i = 0; i < 4; i++){
+        let x = transforms[p.color][String(p.cubes[i].id)][Number(p.pos)];
+        let y = transforms[p.color][String(p.cubes[i].id)][Number(p.pos) + 1];
+        x += p.x_offset;
+        y += p.y_offset;
+        board[y][x] = true;
+        boardColors[y][x] = p.lockedInColor;
+        
+
+    }
+    
+}
+
+function checkLoss(){
+    for(let i = 3; i< 7; i++){
+        if (board[0][i] == true)
+            lostGame = board[0][i];
+        console.log(lostGame);
+    }
+}
+
+function removeRows(){
+    let numRemoved = 0;
+    for(let i = 0; i < 20; i++){
+        let counter = 0;
+        for(let j = 0; j < 10; j++){
+            if(board[i][j] == true){
+                counter++;
+            }
+        }
+        if (counter == 10){
+            removeRow(i);
+            shiftAllDown(i);
+            numRemoved++;
+        }
+    }
+    incrementScore(numRemoved);
+    
+    
+}
+
+function removeRow(rowNum){
+    for(let i = 0; i < 10; i++){
+        board[rowNum][i] = false;
+        boardColors[rowNum][i] = "none";
+    }
+}
+
+//out of bounds!
+function shiftAllDown(start){ //shifts down to toRow 
+let counter = 0;
+    for(let i = start; i > 0; i--){
+        for(let j = 0; j < 10; j++){
+            board[i][j] = board[i-1][j];
+            boardColors[i][j] = boardColors[i-1][j];
+            if (board[i-1][j] == false)
+                counter++;
+            
+        }
+        //if the row was empty it stops the loop early
+        if (counter == 10){
+            console.log(i);
+            break;
+        }
+            
+        counter = 0;
+    }
+}
+
+function incrementScore(num){
+    switch(num){
+        case 1: 
+            totalScore+=40;
+            break;
+        case 2:
+            totalScore +=100;
+            break;
+        case 3:
+            totalScore += 300;
+            break;
+        case 4:
+            totalScore += 1200;
+            break;
+        default: break;
+    }
+}
+
+
+function cube(id){
+    this.id = id;
+ 
+    this.render = function(color, pos, x_offset, y_offset){
+        let x = transforms[color][String(this.id)][Number(pos)];
+        let y = transforms[color][String(this.id)][Number(pos) + 1];
+        c.fillRect((x+x_offset)*40, (y+y_offset)*40, CUBEW, CUBEH);
+    }
+}
+
+function peice(){
+    rand = (Math.random()*7)|0;
+    this.color = colors[rand];
+    this.lockedInColor = lockedInColors[rand];
+    this.cubes = [];
+    this.pos = 0;
+    this.x_offset = 0;
+    this.y_offset = 0;
+    this.cubes.push(new cube(0));
+    this.cubes.push(new cube(1));
+    this.cubes.push(new cube(2));
+    this.cubes.push(new cube(3));
+
+    this.render = function(){
+        c.fillStyle = this.color;
+        this.cubes.forEach(cube => {
+            cube.render(this.color, this.pos, this.x_offset, this.y_offset);
+        });
+    }
+
+    //checks if the peice can spin, if so spins.
+    this.spin = function(){
+        let oldPos = this.pos;
+        if (this.pos == 6){
+            this.pos = 0;
+        } else {
+            this.pos +=2;
+        }
+        if (!checkMove(this, 0, 0)){
+            this.pos = oldPos;
+        }
+    }
+
+    this.xMove = function(amount){
+        if (checkMove(this, amount, 0))
+            this.x_offset += amount;
+    }
+
+    this.yMove = function(amount){
+        if (checkMove(this, 0, amount)){
+            this.y_offset += amount;
+            return true;
+        }
+        return false;
+    }
+}
+
+function initializeBoard(){
+
+    for(let i = 0; i < 20; i++){
+        board[i] = new Array(false, false, false, false, false,
+                             false, false, false, false, false);
+        boardColors[i] = new Array("none", "none", "none", "none", "none",
+                                   "none", "none", "none", "none", "none");
+    }
+}
+
+function checkMove(peice, xAmount, yAmount){
+    for(let i = 0; i < 4; i++){
+        let x = transforms[p.color][String(peice.cubes[i].id)][Number(peice.pos)]
+        let y = transforms[p.color][String(peice.cubes[i].id)][Number(peice.pos)+1]
+        try {
+            if (board[y+peice.y_offset+yAmount][x+peice.x_offset+xAmount] == true ||
+                board[y+peice.y_offset+yAmount][x+peice.x_offset+xAmount] == undefined)
+                return false;
+        }
+        catch (err){
+            return false;
+        }
+    }
+    return true;
+    
+}
+
+//function checkLoss(){
+//    if
+//}
+
+function drawgrid(){
+    var pos = 39;
+    c.fillStyle = backgroundColor;
+    c.fillRect(0,0, 400, 800);
+    if(document.getElementById("gridlines").checked)
+        c.fillStyle = lineColor;
+    for(let i = 0; i < 10; i++){
+        c.fillRect(pos, 0, 1, 800);
+        c.fillRect(0, pos, 400, 1);
+        c.fillRect(0, pos+400, 400, 1);
+        pos += 40;
+    }
+    c.fillRect(0, 0, 400, 1);
+    c.fillRect(0, 0, 1, 800);
+
+    for(let i = 0; i < 20; i++){
+        for(let j = 0; j < 10; j++){
+            if(board[i][j] == true){
+                c.fillStyle = boardColors[i][j];
+                c.fillRect(j*40, i*40, CUBEW, CUBEH);
+            }
+        }
+    }   
+}
+
+function printArrays(){
+    var str = "";
+    var str1 = "";
+    for(let i = 0; i < 20; i++){
+        for(j = 0; j < 10; j++){
+            
+            if (board[i][j] == true){
+                str += " t";
+            } else{
+                str += " f";
+            }
+            
+            str1 += " " + boardColors[i][j].charAt(0);
+        }
+        
+        str += "\n";
+        str1 += "\n";
+    }
+    console.log(str);
+    console.log(str1);
+}
+
+
+</script>

@@ -1,4 +1,4 @@
-A place to recreate retro games
+recreations of retro games
 
 
 <h4>Tetris</h4>
